@@ -4,11 +4,39 @@ var ExtractTextPlugin = require('extract-text-webpack-plugin')
 var OptimizeCSSPlugin = require('optimize-css-assets-webpack-plugin')
 var isProduction = process.env.NODE_ENV === 'production';
 
-{{#webpack-dashboard}}
+{{#dashboard}}
 var Dashboard = require('webpack-dashboard');
 var DashboardPlugin = require('webpack-dashboard/plugin');
 var dashboard = new Dashboard();
-{{/webpack-dashboard}}
+{{/dashboard}}
+
+
+
+var isProduction = process.env.NODE_ENV === "production";
+
+var loaders = {
+  css: ["vue-style-loader", "css-loader"],
+  {{#if_eq preprocessor "LESS"}}
+  less: ["vue-style-loader", "css-loader", "less-loader"]
+  {{/if_eq}}
+  {{#if_eq preprocessor "Sass"}}
+  sass: ["vue-style-loader", "css-loader", "sass-loader"],
+  scss: ["vue-style-loader", "css-loader", "sass-loader"],
+  {{/if_eq}}
+};
+
+if (isProduction) {
+
+  for (var key in loaders) {
+    var fallback = loaders[key].shift();
+    loaders[key] = ExtractTextPlugin.extract({
+      use: loaders[key],
+      fallback: fallback
+    });
+  }
+
+}
+
 
 module.exports = {
   entry: './main.js',
@@ -20,36 +48,26 @@ module.exports = {
   module: {
     rules: [
       {
+        test: /\.css$/,
+        use: loaders.css
+      },
+      {
+        test: /\.less$/,
+        use: loaders.less
+      },
+      {
+        test: /\.vue$/,
+        loader: "vue-loader",
+        options: {
+          loaders,
+          esModule: false
+        }
+      },
+      {
         test: /\.vue$/,
         loader: 'vue-loader',
         options: {
-          loaders: 
-            isProduction ? {
-              'css': ExtractTextPlugin.extract({ 
-                  fallback: 'vue-style-loader',
-                  use: 'css-loader' 
-                }),
-              {{#if_eq preprocessor "LESS"}}
-              'less': ExtractTextPlugin.extract({ 
-                  fallback: 'vue-style-loader',
-                  use: 'css-loader!less-loader' 
-                }),
-              {{/if_eq}}
-              {{#if_eq preprocessor "Sass"}}
-              // Since sass-loader (weirdly) has SCSS as its default parse mode, we map
-              // the "scss" and "sass" values for the lang attribute to the right configs here.
-              // other preprocessors should work out of the box, no loader config like this necessary.
-              'scss': ExtractTextPlugin.extract({ 
-                  fallback: 'vue-style-loader',
-                  use: 'css-loader!sass-loader' 
-                }),
-              'sass': ExtractTextPlugin.extract({ 
-                  fallback: 'vue-style-loader',
-                  use: 'css-loader!sass-loader?indentedSyntax' 
-                })
-              {{/if_eq}}
-            }
-            : {}
+          loaders
         }
       },
       {
@@ -88,17 +106,17 @@ module.exports = {
   },
   devtool: '#eval-source-map',
   plugins: [
-    new webpack.NamedModulesPlugin(){{#webpack-dashboard}},
-    new DashboardPlugin(dashboard.setData){{/webpack-dashboard}}
+    new webpack.NamedModulesPlugin(){{#dashboard}},
+    new DashboardPlugin(dashboard.setData){{/dashboard}}
   ]
 }
 
 if ( isProduction ) {
-  
+
   module.exports.devtool = '#source-map';
-  
+
   module.exports.output.publicPath = './wp-content/themes/{{ name }}/assets/';
-  
+
   // http://vue-loader.vuejs.org/en/workflow/production.html
   module.exports.plugins = (module.exports.plugins || []).concat([
     new webpack.DefinePlugin({
